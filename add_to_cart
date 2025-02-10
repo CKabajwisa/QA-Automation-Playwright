@@ -1,0 +1,91 @@
+from playwright.sync_api import sync_playwright
+
+
+def test_add_to_cart():
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=False)  # Use headless=True for headless mode
+        page = browser.new_page()
+
+        # Set global timeout
+        page.set_default_timeout(60000)
+
+        # Navigate to the website
+        page.goto("https://automationexercise.com/")  # Replace with the actual URL
+
+        # Wait for "Features Items" section to load
+        features_section = page.locator("text='Features Items'")
+        features_section.wait_for(state="visible")
+
+        # Scroll down the page to ensure all content is loaded
+        for _ in range(10):  # Scroll down 10 times (adjust if needed)
+            page.evaluate("window.scrollBy(0, 1000)")  # Scroll down by 1000 pixels
+            page.wait_for_timeout(1000)  # Wait 1 second between scrolls to allow content to load
+
+        # Locate the "Fancy Green Top" element
+        fancy_green_top = page.locator("text='Fancy Green Top'").nth(0)  # Selects the first occurrence
+        fancy_green_top.wait_for(state="attached", timeout=20000)  # Ensure the element is attached to the DOM
+        fancy_green_top.scroll_into_view_if_needed()  # Scroll the element into view if needed
+        fancy_green_top.click()  # Click the "Fancy Green Top" link
+
+        # Locate the anchor with the specific href and text "View Product"
+        view_product_link = page.locator('a[href="/product_details/8"]', has_text="View Product")
+        view_product_link.click()
+
+        # Locate the button element and click it
+        add_to_cart_button = page.locator('button.btn.btn-default.cart', has_text="Add to cart")
+        add_to_cart_button.click()
+
+        page.wait_for_timeout(2000)  # Wait for 2 seconds to ensure the page is fully loaded
+
+        # Perform the scrolling to load additional content if needed
+        for _ in range(10):  # Scroll down 10 times
+            page.evaluate("window.scrollBy(0, 1000)")  # Scroll down by 1000 pixels
+            page.wait_for_timeout(1000)  # Wait 1 second between scrolls to allow content to load
+
+        # Wait for the modal to appear
+        modal = page.locator('.modal-content')
+        modal.wait_for(state="visible")  # Wait for the modal to appear
+
+        # Check if the modal exists and close it if it does
+        if modal.is_visible():
+            close_modal_button = modal.locator('button.close')  # Check if there's a close button
+            if close_modal_button.count() > 0:  # If close button exists
+                close_modal_button.click()
+            else:
+                # Alternatively, hide the modal using JavaScript if no close button exists
+                modal_element = page.locator("#checkoutModal")
+                if modal_element.is_visible():  # Check if the modal is visible
+                    page.evaluate("document.getElementById('checkoutModal').style.display = 'none';")
+
+        # Locate the modal body and the added-to-cart text
+        modal_body = page.locator('.modal-body')
+        added_to_cart_text = modal_body.locator('p.text-center').filter(
+            has_text="Your product has been added to cart.")
+        added_to_cart_text.wait_for(state="visible")
+
+        # Assert the modal text matches the expected message
+        assert added_to_cart_text.inner_text() == "Your product has been added to cart."
+
+        # Locate the "View Cart" link inside the modal and click it
+        view_cart_link = modal_body.locator('a[href="/view_cart"]')
+        view_cart_link.wait_for(state="visible", timeout=60000)  # Wait for the link to be visible
+        view_cart_link.click()
+
+        # Wait for the modal to disappear or another action to complete
+        page.wait_for_timeout(2000)
+
+        # Locate the "Proceed To Checkout" button inside the col-sm-6 div and click it
+        proceed_to_checkout_button = page.locator('div.col-sm-6 a.check_out')
+        proceed_to_checkout_button.wait_for(state="visible", timeout=60000)  # Wait for the button to appear
+        proceed_to_checkout_button.click()
+
+        # Locate the "Continue On Cart" button inside the modal footer and click it
+        continue_on_cart_button = page.locator('div.modal-footer button.btn.btn-success.close-checkout-modal')
+        continue_on_cart_button.wait_for(state="visible", timeout=60000)  # Wait for the button to appear
+        continue_on_cart_button.click()
+
+        # Ensure the URL has changed to the checkout page
+        assert page.url == "https://automationexercise.com/view_cart"  # Adjust the expected URL as needed
+
+        # Close the browser
+        browser.close()
